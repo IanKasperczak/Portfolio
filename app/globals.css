@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+:root {
+  /* Paleta cálida tipo diorama de juguete */
+  --background: #f7ecdc;
+  --background-deep: #e9d6bb;
+  --foreground: #3a2415;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background:
+    radial-gradient(
+      120% 90% at 50% 0%,
+      var(--background) 0%,
+      var(--background-deep) 100%
+    );
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* El canvas de R3F se estira al contenedor; evitamos overflow horizontal. */
+canvas {
+  display: block;
+  touch-action: pan-y;
+}
