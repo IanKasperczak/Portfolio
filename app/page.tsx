@@ -28,10 +28,10 @@ export default function Home() {
           Portfolio
         </p>
         <h1 className="mt-2 text-3xl font-semibold text-balance text-amber-950 sm:text-5xl">
-          Un escritorio en miniatura
+          Mi cuarto en miniatura
         </h1>
         <p className="mt-3 max-w-xl text-sm text-pretty text-amber-950/70 sm:text-base">
-          Cada objeto sobre el escritorio es un proyecto. Pasá el cursor para
+          Cada objeto del cuarto es un proyecto. Pasá el cursor para
           resaltarlo y tocá para abrir el detalle.
         </p>
       </motion.header>
@@ -47,13 +47,6 @@ export default function Home() {
           </span>
         </div>
       </section>
-
-      <div className="flex-1 px-6 pt-8 pb-16 sm:px-10">
-        <p className="text-sm text-amber-950/50">
-          Placeholders de la Fase 1 — los modelos .glb reemplazan estas formas en
-          el próximo paso.
-        </p>
-      </div>
 
       <ProjectPanel project={selected} onClose={() => setSelected(null)} />
     </main>

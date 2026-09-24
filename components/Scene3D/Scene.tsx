@@ -5,7 +5,7 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { OrthographicCamera } from "@react-three/drei";
 import type { OrthographicCamera as ThreeOrthographicCamera } from "three";
 import type { Project } from "@/lib/projects";
-import Desk from "./Desk";
+import Room from "./Room";
 import PostProcessing from "./PostProcessing";
 
 /**
@@ -13,17 +13,28 @@ import PostProcessing from "./PostProcessing";
  * esquina. No hay OrbitControls a propósito — la idea es un diorama que se
  * mira, no una escena que se orbita.
  */
-const ISO_CAMERA_POSITION: [number, number, number] = [12, 11, 12];
+const ISO_CAMERA_OFFSET: [number, number, number] = [12, 11, 12];
+
+/**
+ * Centro visual del cuarto: queda un poco por encima del origen porque las
+ * paredes suben hasta ~4.9. Mirando acá, el diorama queda centrado en pantalla.
+ */
+const LOOK_AT: [number, number, number] = [-0.88, 1.92, -0.88];
+const ISO_CAMERA_POSITION: [number, number, number] = [
+  LOOK_AT[0] + ISO_CAMERA_OFFSET[0],
+  LOOK_AT[1] + ISO_CAMERA_OFFSET[1],
+  LOOK_AT[2] + ISO_CAMERA_OFFSET[2],
+];
 
 /** Cuántas unidades de mundo tienen que entrar en el viewport, sí o sí. */
-const FRAME_WIDTH = 18;
-const FRAME_HEIGHT = 11;
+const FRAME_WIDTH = 13.6;
+const FRAME_HEIGHT = 11.2;
 const MIN_ZOOM = 18;
 
 const BACKGROUND = "#f3e3cd";
 
 /**
- * Cámara fija apuntando al centro. El zoom se recalcula con el tamaño real del
+ * Cámara fija apuntando al centro del cuarto. El zoom se recalcula con el tamaño real del
  * canvas, así la escena entra completa tanto en desktop como en mobile.
  */
 function IsoCamera() {
@@ -36,7 +47,7 @@ function IsoCamera() {
     if (!cam) return;
 
     cam.position.set(...ISO_CAMERA_POSITION);
-    cam.lookAt(0, 0, 0);
+    cam.lookAt(...LOOK_AT);
     cam.zoom = Math.max(
       MIN_ZOOM,
       Math.min(width / FRAME_WIDTH, height / FRAME_HEIGHT),
@@ -92,12 +103,12 @@ export default function Scene({
       style={{ touchAction: "pan-y" }}
     >
       <color attach="background" args={[BACKGROUND]} />
-      <fog attach="fog" args={[BACKGROUND, 24, 42]} />
+      <fog attach="fog" args={[BACKGROUND, 28, 48]} />
 
       <IsoCamera />
 
       <Suspense fallback={null}>
-        <Desk onSelectProject={onSelectProject} onHoverProject={handleHover} />
+        <Room onSelectProject={onSelectProject} onHoverProject={handleHover} />
       </Suspense>
 
       <PostProcessing enabled={postProcessing} focusProject={focusProject} />
