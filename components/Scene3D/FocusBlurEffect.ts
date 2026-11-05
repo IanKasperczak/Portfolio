@@ -16,8 +16,8 @@ import {
 /**
  * Blur selectivo para el diorama, en screen-space:
  *
- * - `edgeStrength`: blur muy suave que crece hacia las esquinas de la pantalla
- *   (el look "miniatura" en reposo).
+ * - `edgeStrength`: blur muy suave que crece desde `center` (el cuarto en
+ *   pantalla) hacia las esquinas: el look "miniatura" en reposo.
  * - `focusStrength`: blur de toda la escena salvo `focusObject`, que se
  *   recorta con una máscara (su silueta renderizada en blanco).
  * - `glowStrength`: halo de color `glowColor` por fuera de esa misma
@@ -33,6 +33,7 @@ uniform sampler2D maskBuffer;
 uniform float focusStrength;
 uniform float edgeStrength;
 uniform float aspect;
+uniform vec2 center;
 uniform vec2 maskTexel;
 uniform vec3 glowColor;
 uniform float glowStrength;
@@ -50,8 +51,8 @@ float ring(const in vec2 uv, const in float radius) {
 }
 
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
-  // 0 en el centro, 1 en las esquinas, respetando la proporción del canvas.
-  vec2 fromCenter = (uv - 0.5) * vec2(aspect, 1.0);
+  // 0 en el centro del cuarto, 1 en las esquinas, respetando la proporción del canvas.
+  vec2 fromCenter = (uv - center) * vec2(aspect, 1.0);
   float corner = length(vec2(aspect, 1.0) * 0.5);
   float edge = smoothstep(0.55, 1.0, length(fromCenter) / corner);
 
@@ -97,6 +98,7 @@ export class FocusBlurEffect extends Effect {
         ["focusStrength", new Uniform(0)],
         ["edgeStrength", new Uniform(edgeStrength)],
         ["aspect", new Uniform(1)],
+        ["center", new Uniform(new Vector2(0.5, 0.5))],
         ["maskTexel", new Uniform(new Vector2(1, 1))],
         ["glowColor", new Uniform(new Color())],
         ["glowStrength", new Uniform(0)],
@@ -132,6 +134,11 @@ export class FocusBlurEffect extends Effect {
 
   set glowStrength(value: number) {
     this.uniforms.get("glowStrength")!.value = value;
+  }
+
+  /** Centro del look miniatura, en UV de pantalla (Y hacia arriba). */
+  setCenter(u: number, v: number) {
+    this.uniforms.get("center")!.value.set(u, v);
   }
 
   get edgeStrength(): number {

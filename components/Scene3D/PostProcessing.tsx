@@ -6,6 +6,7 @@ import { EffectComposer, Vignette } from "@react-three/postprocessing";
 import { MathUtils } from "three";
 import type { Project } from "@/lib/projects";
 import { FocusBlurEffect } from "./FocusBlurEffect";
+import { viewLayout } from "./interaction";
 
 /**
  * Look "diorama en miniatura", con dos estados:
@@ -49,6 +50,7 @@ export default function PostProcessing({
     if (!blur) return;
 
     blur.camera = camera;
+    blur.setCenter(viewLayout.cx, viewLayout.cy);
     blur.focusStrength = MathUtils.damp(
       blur.focusStrength,
       focusProject ? FOCUS_BLUR : 0,
@@ -79,7 +81,7 @@ export default function PostProcessing({
   return (
     <EffectComposer multisampling={4}>
       <primitive ref={focusBlur} object={effect} dispose={null} />
-      <Vignette offset={0.3} darkness={0.4} eskil={false} />
+      <Vignette offset={0.35} darkness={0.22} eskil={false} />
     </EffectComposer>
   );
 }
