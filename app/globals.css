@@ -41,10 +41,10 @@ canvas {
 }
 
 /*
- * Luz del mouse sobre las letras del título (TiltHeading). No es un glow: las
+ * Luz del mouse sobre las letras del título (SheenHeading). No es un glow: las
  * letras no emiten nada, es un reflejo cálido que les pasa por encima. Dos
  * capas recortadas al texto: la luz arriba y el color de la letra abajo.
- * TiltHeading escribe --sx/--sy (posición de la luz en px, relativa a la
+ * SheenHeading escribe --sx/--sy (posición de la luz en px, relativa a la
  * palabra) y --si (intensidad 0..1) en cada palabra. Sin JS (o en pantallas
  * táctiles) --si queda en 0 y se ve el color plano.
  */

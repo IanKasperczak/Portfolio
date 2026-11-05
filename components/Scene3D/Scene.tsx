@@ -5,7 +5,7 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { OrthographicCamera, PerformanceMonitor } from "@react-three/drei";
 import type { OrthographicCamera as ThreeOrthographicCamera } from "three";
 import type { Project } from "@/lib/projects";
-import FluidBackground, { BACKGROUND_LAYER } from "./FluidBackground";
+import Backdrop, { BACKGROUND_LAYER } from "./Backdrop";
 import { ROOM_PIVOT, usePointerTracking, viewLayout } from "./interaction";
 import PostProcessing from "./PostProcessing";
 import Room from "./Room";
@@ -116,9 +116,12 @@ export default function Scene({
   // La escena es dueña del "qué está resaltado": el post-processing lo usa para
   // mover el foco. El callback hacia afuera es sólo para la UI (el label).
   const [focusProject, setFocusProject] = useState<Project | null>(null);
-  // Canvas a pantalla completa + fluido + post-processing: si el equipo no da,
-  // se baja la resolución antes de perder fluidez.
-  const [dpr, setDpr] = useState(1.5);
+  // Resolución nativa de la pantalla (hasta 2x). Si el equipo no da, se baja
+  // un escalón, pero nunca por debajo de la nativa * 0.75: a 1x en una pantalla
+  // de 1.25x o 1.5x el navegador estira la imagen y todo se ve pixelado.
+  const [quality, setQuality] = useState(1);
+  const native = typeof window === "undefined" ? 1 : Math.min(window.devicePixelRatio, 2);
+  const dpr = Math.max(1, native * quality);
 
   const handleHover = useCallback(
     (project: Project | null) => {
@@ -140,11 +143,11 @@ export default function Scene({
       // pase de largo en vez de quedar capturado por el canvas.
       style={{ touchAction: "pan-y" }}
     >
-      <PerformanceMonitor onDecline={() => setDpr(1)} onIncline={() => setDpr(1.5)} />
+      <PerformanceMonitor onDecline={() => setQuality(0.75)} onIncline={() => setQuality(1)} />
       <PointerTracker />
       <IsoCamera />
 
-      <FluidBackground />
+      <Backdrop />
       {/* El fog lleva el color del borde del fondo: lo más lejano se funde con él. */}
       <fog attach="fog" args={["#e6cfb1", 30, 50]} />
 

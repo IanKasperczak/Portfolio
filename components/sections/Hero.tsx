@@ -6,7 +6,7 @@ import Scene from "@/components/Scene3D/Scene";
 import Reveal from "@/components/ui/Reveal";
 import RotatingWords from "@/components/ui/RotatingWords";
 import SplitReveal from "@/components/ui/SplitReveal";
-import TiltHeading from "@/components/ui/TiltHeading";
+import SheenHeading from "@/components/ui/SheenHeading";
 import { EASE_OUT } from "@/components/ui/motion";
 import { about } from "@/lib/about";
 import { projects, type Project } from "@/lib/projects";
@@ -32,7 +32,7 @@ type HeroProps = {
 
 export default function Hero({ onSelectProject }: HeroProps) {
   const section = useRef<HTMLElement>(null);
-  // Fuera de pantalla el canvas deja de renderizar: el fluido y el
+  // Fuera de pantalla el canvas deja de renderizar: la sombra del fondo y el
   // post-processing no tienen por qué gastar GPU mientras se lee "Sobre mí".
   const visible = useOnScreen(section);
   const [hovered, setHovered] = useState<Project | null>(null);
@@ -41,6 +41,7 @@ export default function Hero({ onSelectProject }: HeroProps) {
   return (
     <section
       ref={section}
+      id="inicio"
       aria-label="Presentación"
       className="relative h-[100svh] min-h-[600px] w-full overflow-hidden"
     >
@@ -64,7 +65,7 @@ export default function Hero({ onSelectProject }: HeroProps) {
             </p>
           </Reveal>
 
-          <TiltHeading className="mt-4 font-display text-[clamp(2.6rem,5.4vw,5rem)] leading-[0.95] text-amber-950">
+          <SheenHeading className="mt-4 font-display text-[clamp(2.6rem,5.4vw,5rem)] leading-[0.95] text-amber-950">
             {about.greeting.map((line, i) => (
               <SplitReveal
                 key={line}
@@ -74,7 +75,7 @@ export default function Hero({ onSelectProject }: HeroProps) {
                 wordClassName="sheen-word"
               />
             ))}
-          </TiltHeading>
+          </SheenHeading>
 
           <Reveal inView={false} delay={0.65}>
             <p className="mt-5 font-display text-[clamp(1.35rem,2.2vw,1.9rem)] leading-tight text-amber-950/75">

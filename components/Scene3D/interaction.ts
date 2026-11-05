@@ -8,7 +8,7 @@ import { MathUtils, Vector3, type Object3D } from "three";
  *
  * Son objetos mutables a nivel de módulo, no estado de React: los leen y
  * escriben los `useFrame` de varias piezas (inclinación del cuarto, tambaleo,
- * fluido) 60 veces por segundo, y pasarlos por React haría re-renderizar el
+ * sombra del fondo) 60 veces por segundo, y pasarlos por React haría re-renderizar el
  * canvas en cada movimiento del mouse.
  */
 
@@ -20,11 +20,6 @@ export const pointer = {
   /** Coordenadas UV dentro del canvas (0..1, Y hacia arriba). */
   u: 0.5,
   v: 0.5,
-  /** Movimiento acumulado en UV desde que el fluido lo consumió por última vez. */
-  du: 0,
-  dv: 0,
-  /** Si el puntero está sobre el canvas. */
-  inside: false,
   /** `performance.now()` del último movimiento. */
   lastMove: Number.NEGATIVE_INFINITY,
   /** Mouse o trackpad. En pantallas táctiles el cuarto no sigue al dedo. */
@@ -43,6 +38,12 @@ export const viewLayout = { cx: 0.5, cy: 0.5 };
  * inclina sus letras igual que el cuarto.
  */
 export const roomMotion = { yaw: 0, pitch: 0, yawVel: 0, pitchVel: 0 };
+
+/**
+ * Lo que proyecta sombra sobre el fondo: el cuarto con sus objetos (sin la
+ * sombra de contacto, que es un plano). Lo registra Room y lo lee Backdrop.
+ */
+export const shadowCaster: { object: Object3D | null } = { object: null };
 
 /** Giro máximo del cuarto siguiendo al mouse (rad). Unos 4° y 2°: se siente, no marea. */
 export const MAX_YAW = 0.07;
@@ -68,18 +69,9 @@ export function usePointerTracking(canvas: HTMLElement) {
 
       const u = (event.clientX - rect.left) / rect.width;
       const v = 1 - (event.clientY - rect.top) / rect.height;
-      const inside = u >= 0 && u <= 1 && v >= 0 && v <= 1;
-
-      // Sólo se acumula movimiento dentro del canvas: si el puntero entra
-      // desde afuera, el salto no tiene que convertirse en un chorro de fluido.
-      if (pointer.inside && inside) {
-        pointer.du += u - pointer.u;
-        pointer.dv += v - pointer.v;
-      }
 
       pointer.u = u;
       pointer.v = v;
-      pointer.inside = inside;
       pointer.x = MathUtils.clamp((u - viewLayout.cx) / 0.5, -1, 1);
       pointer.y = MathUtils.clamp((v - viewLayout.cy) / 0.5, -1, 1);
       pointer.lastMove = performance.now();

@@ -30,25 +30,13 @@ import {
 const fragmentShader = /* glsl */ `
 uniform sampler2D blurBuffer;
 uniform sampler2D maskBuffer;
+uniform sampler2D maskBlurBuffer;
 uniform float focusStrength;
 uniform float edgeStrength;
 uniform float aspect;
 uniform vec2 center;
-uniform vec2 maskTexel;
 uniform vec3 glowColor;
 uniform float glowStrength;
-
-const int GLOW_SAMPLES = 16;
-
-// Cobertura de la silueta en un anillo de ese radio (en texels de la máscara).
-float ring(const in vec2 uv, const in float radius) {
-  float sum = 0.0;
-  for (int i = 0; i < GLOW_SAMPLES; i++) {
-    float angle = float(i) * 6.28318530718 / float(GLOW_SAMPLES);
-    sum += texture2D(maskBuffer, uv + vec2(cos(angle), sin(angle)) * maskTexel * radius).r;
-  }
-  return sum / float(GLOW_SAMPLES);
-}
 
 void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor) {
   // 0 en el centro del cuarto, 1 en las esquinas, respetando la proporción del canvas.
@@ -64,8 +52,11 @@ void mainImage(const in vec4 inputColor, const in vec2 uv, out vec4 outputColor)
 
   // Halo: línea firme pegada a la silueta + degradé suave hacia afuera.
   // Sólo por fuera del objeto, así sus materiales quedan intactos.
+  // Sale de la máscara desenfocada: un degradé continuo, sin los escalones que
+  // daba muestrear la silueta en un anillo de puntos.
   if (glowStrength > 0.001) {
-    float halo = min(1.0, ring(uv, 1.5) * 1.6) * 0.8 + ring(uv, 4.0) * 0.5;
+    float soft = texture2D(maskBlurBuffer, uv).r;
+    float halo = smoothstep(0.03, 0.32, soft) * 0.55 + soft * 0.75;
     color += glowColor * clamp(halo, 0.0, 1.0) * (1.0 - mask) * glowStrength;
   }
 
@@ -82,6 +73,8 @@ export class FocusBlurEffect extends Effect {
   private readonly blurPass: KawaseBlurPass;
   private readonly blurTarget: WebGLRenderTarget;
   private readonly maskTarget: WebGLRenderTarget;
+  private readonly maskBlurPass: KawaseBlurPass;
+  private readonly maskBlurTarget: WebGLRenderTarget;
   private readonly maskMaterial = new MeshBasicMaterial({
     color: 0xffffff,
     fog: false,
@@ -89,17 +82,19 @@ export class FocusBlurEffect extends Effect {
   });
   private readonly clearColor = new Color();
   private readonly swapped = new Map<Mesh, Material | Material[]>();
+  /** La máscara desenfocada todavía tiene la silueta del último objeto. */
+  private maskBlurDirty = false;
 
   constructor({ edgeStrength = 0.4 } = {}) {
     super("FocusBlurEffect", fragmentShader, {
       uniforms: new Map<string, Uniform>([
         ["blurBuffer", new Uniform(null)],
         ["maskBuffer", new Uniform(null)],
+        ["maskBlurBuffer", new Uniform(null)],
         ["focusStrength", new Uniform(0)],
         ["edgeStrength", new Uniform(edgeStrength)],
         ["aspect", new Uniform(1)],
         ["center", new Uniform(new Vector2(0.5, 0.5))],
-        ["maskTexel", new Uniform(new Vector2(1, 1))],
         ["glowColor", new Uniform(new Color())],
         ["glowStrength", new Uniform(0)],
       ]),
@@ -110,9 +105,19 @@ export class FocusBlurEffect extends Effect {
       resolutionScale: 0.5,
     });
     this.blurTarget = new WebGLRenderTarget(1, 1, { depthBuffer: false });
-    this.maskTarget = new WebGLRenderTarget(1, 1, { depthBuffer: false });
+    // Resolución completa y con MSAA: es el borde entre lo nítido y lo
+    // borroso, y a media resolución se veía escalonado al agrandarse el objeto.
+    this.maskTarget = new WebGLRenderTarget(1, 1, { depthBuffer: false, samples: 4 });
+
+    this.maskBlurPass = new KawaseBlurPass({
+      kernelSize: KernelSize.MEDIUM,
+      resolutionScale: 0.5,
+    });
+    this.maskBlurTarget = new WebGLRenderTarget(1, 1, { depthBuffer: false });
+
     this.uniforms.get("blurBuffer")!.value = this.blurTarget.texture;
     this.uniforms.get("maskBuffer")!.value = this.maskTarget.texture;
+    this.uniforms.get("maskBlurBuffer")!.value = this.maskBlurTarget.texture;
   }
 
   get focusStrength(): number {
@@ -151,6 +156,7 @@ export class FocusBlurEffect extends Effect {
 
   override initialize(renderer: WebGLRenderer, alpha: boolean, frameBufferType: number) {
     this.blurPass.initialize(renderer, alpha, frameBufferType);
+    this.maskBlurPass.initialize(renderer, alpha, frameBufferType);
     // El blur trabaja sobre el buffer lineal del composer: mismo formato.
     this.blurTarget.texture.type = frameBufferType as TextureDataType;
   }
@@ -158,12 +164,10 @@ export class FocusBlurEffect extends Effect {
   override setSize(width: number, height: number) {
     this.blurPass.setSize(width, height);
     this.blurTarget.setSize(width, height);
-    // La máscara no necesita resolución completa: a la mitad queda con un
-    // borde levemente suave, que disimula el corte entre nítido y borroso.
-    const maskWidth = Math.max(1, Math.floor(width / 2));
-    const maskHeight = Math.max(1, Math.floor(height / 2));
-    this.maskTarget.setSize(maskWidth, maskHeight);
-    this.uniforms.get("maskTexel")!.value.set(1 / maskWidth, 1 / maskHeight);
+    this.maskTarget.setSize(width, height);
+    // El halo es un degradé: a media resolución no se nota y cuesta un cuarto.
+    this.maskBlurPass.setSize(width, height);
+    this.maskBlurTarget.setSize(Math.max(1, Math.floor(width / 2)), Math.max(1, Math.floor(height / 2)));
     this.uniforms.get("aspect")!.value = width / Math.max(1, height);
   }
 
@@ -179,7 +183,8 @@ export class FocusBlurEffect extends Effect {
     renderer.clear(true, false, false);
 
     const target = this.focusObject;
-    if (target && this.camera && (this.focusStrength > 0.001 || this.glowStrength > 0.001)) {
+    const active = Boolean(target && this.camera && (this.focusStrength > 0.001 || this.glowStrength > 0.001));
+    if (target && this.camera && active) {
       // Silueta del objeto en blanco: se cambian sus materiales sólo durante
       // este render y se restauran enseguida.
       target.traverse((child) => {
@@ -193,6 +198,12 @@ export class FocusBlurEffect extends Effect {
       this.swapped.clear();
     }
 
+    // Sin objeto resaltado la máscara está vacía: no hace falta desenfocarla.
+    if (active || this.maskBlurDirty) {
+      this.maskBlurPass.render(renderer, this.maskTarget, this.maskBlurTarget);
+      this.maskBlurDirty = active;
+    }
+
     renderer.setClearColor(this.clearColor, previousAlpha);
     renderer.setRenderTarget(previousTarget);
   }
@@ -202,6 +213,8 @@ export class FocusBlurEffect extends Effect {
     this.blurPass.dispose();
     this.blurTarget.dispose();
     this.maskTarget.dispose();
+    this.maskBlurPass.dispose();
+    this.maskBlurTarget.dispose();
     this.maskMaterial.dispose();
   }
 }

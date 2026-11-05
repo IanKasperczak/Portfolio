@@ -2,12 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { useAnimationFrame } from "framer-motion";
-import { MathUtils } from "three";
-import { MAX_PITCH, MAX_YAW, pointer, roomMotion } from "@/components/Scene3D/interaction";
-
-/** Rotación máxima de las letras (grados del eje de la fuente, que llega a 45). */
-const MAX_YROT = 24;
-const MAX_XROT = 14;
+import { pointer } from "@/components/Scene3D/interaction";
 
 /** Qué tan rápido la luz alcanza al cursor (1/s). Un poco de inercia la hace sentir física. */
 const LIGHT_FOLLOW = 9;
@@ -18,25 +13,19 @@ function setIfChanged(el: HTMLElement, property: string, value: string) {
   if (el.style.getPropertyValue(property) !== value) el.style.setProperty(property, value);
 }
 
-type TiltHeadingProps = {
+type SheenHeadingProps = {
   children: ReactNode;
   className?: string;
 };
 
 /**
- * Título en Tilt Warp que acompaña al cuarto:
- *
- * - Sus letras giran en 3D con la misma inclinación que publica TiltRig (ejes
- *   XROT / YROT de la fuente). Con movimiento reducido el cuarto no se
- *   inclina, así que las letras tampoco.
- * - El mouse les pasa una luz por encima. Las palabras con `.sheen-word`
- *   (globals.css) pintan un reflejo en (--sx, --sy) con intensidad --si; acá se
- *   calcula esa posición para cada palabra. Sólo con mouse: en pantallas
- *   táctiles no hay cursor que ilumine.
+ * Título al que el mouse le pasa una luz por encima. Las palabras con
+ * `.sheen-word` (globals.css) pintan un reflejo en (--sx, --sy) con
+ * intensidad --si; acá se calcula esa posición para cada palabra. Sólo con
+ * mouse: en pantallas táctiles no hay cursor que ilumine.
  */
-export default function TiltHeading({ children, className }: TiltHeadingProps) {
+export default function SheenHeading({ children, className }: SheenHeadingProps) {
   const heading = useRef<HTMLHeadingElement>(null);
-  const applied = useRef({ x: Number.NaN, y: Number.NaN });
   const light = useRef({ x: 0, y: 0, targetX: 0, targetY: 0, on: 0, targetOn: 0, placed: false });
 
   useEffect(() => {
@@ -68,15 +57,6 @@ export default function TiltHeading({ children, className }: TiltHeadingProps) {
   useAnimationFrame((_, deltaMs) => {
     const el = heading.current;
     if (!el) return;
-
-    // Medio grado de resolución: cambiar un eje variable vuelve a componer el
-    // texto, así que no tiene sentido hacerlo por diferencias invisibles.
-    const y = Math.round(MathUtils.clamp(roomMotion.yaw / MAX_YAW, -1, 1) * MAX_YROT * 2) / 2;
-    const x = Math.round(MathUtils.clamp(roomMotion.pitch / MAX_PITCH, -1, 1) * MAX_XROT * 2) / 2;
-    if (x !== applied.current.x || y !== applied.current.y) {
-      applied.current = { x, y };
-      el.style.fontVariationSettings = `"XROT" ${x}, "YROT" ${y}`;
-    }
 
     const l = light.current;
     if (!pointer.fine) l.targetOn = 0;

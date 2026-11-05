@@ -2,14 +2,10 @@ import type { Metadata } from "next";
 import { Parkinsans, Tilt_Warp } from "next/font/google";
 import "./globals.css";
 
-/**
- * Títulos: Tilt Warp tiene ejes variables de rotación (XROT / YROT). El título
- * del hero los mueve junto con la inclinación del cuarto.
- */
+/** Títulos: redonda y con peso, como letras de juguete. */
 const display = Tilt_Warp({
   variable: "--font-tilt",
   subsets: ["latin"],
-  axes: ["XROT", "YROT"],
 });
 
 /**

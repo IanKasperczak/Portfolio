@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import { ContactShadows, Environment, Lightformer, useGLTF } from "@react-three/drei";
 import { Box3, Group, Mesh, Vector3, type Object3D } from "three";
 import { projects, type Project } from "@/lib/projects";
-import { motionPrefs, Wobbler, type WobbleSettings } from "./interaction";
+import { motionPrefs, shadowCaster, Wobbler, type WobbleSettings } from "./interaction";
 import ProjectObject from "./ProjectObject";
 import TiltRig from "./TiltRig";
 
@@ -96,6 +96,14 @@ export default function Room({ onSelectProject, onHoverProject }: RoomProps) {
 
   const [decor] = useState(() => createDecorWobblers(scene));
 
+  const caster = useRef<Group>(null);
+  useEffect(() => {
+    shadowCaster.object = caster.current;
+    return () => {
+      shadowCaster.object = null;
+    };
+  }, []);
+
   useFrame((_, delta) => {
     for (const wobbler of decor) {
       if (motionPrefs.reduced) wobbler.reset();
@@ -138,7 +146,19 @@ export default function Room({ onSelectProject, onHoverProject }: RoomProps) {
       <directionalLight position={[-7, 4.5, -6]} intensity={0.6} color="#bcd4ff" />
 
       <TiltRig>
-        <primitive object={room} />
+        {/* Este grupo es la silueta que proyecta sombra sobre el fondo. */}
+        <group ref={caster}>
+          <primitive object={room} />
+
+          {projects.map((project) => (
+            <ProjectObject
+              key={project.id}
+              project={project}
+              onSelect={onSelectProject}
+              onHoverChange={onHoverProject}
+            />
+          ))}
+        </group>
 
         {/* Sombra de contacto: el truco que más ayuda al look "miniatura".
             Va apenas por encima de la alfombra para que no la tape. */}
@@ -151,15 +171,6 @@ export default function Room({ onSelectProject, onHoverProject }: RoomProps) {
           opacity={0.4}
           color="#6d3f1e"
         />
-
-        {projects.map((project) => (
-          <ProjectObject
-            key={project.id}
-            project={project}
-            onSelect={onSelectProject}
-            onHoverChange={onHoverProject}
-          />
-        ))}
       </TiltRig>
     </group>
   );
