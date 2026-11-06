@@ -1,28 +1,34 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Parkinsans, Tilt_Warp } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/** Títulos: redonda y con peso, como letras de juguete. */
+const display = Tilt_Warp({
+  variable: "--font-tilt",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+/**
+ * Texto: sans geométrica de formas redondeadas, cálida como el diorama.
+ * Sólo latina a propósito: las fuentes con CJK (Zen Maru, M PLUS) llegan en
+ * cientos de fragmentos que next/font no puede filtrar por subset.
+ */
+const body = Parkinsans({
+  variable: "--font-parkinsans",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Portfolio — Ian Kasperczak",
+  title: "Ian Kasperczak — Portfolio",
   description:
-    "Portfolio personal: un escritorio en miniatura donde cada objeto es un proyecto.",
+    "Portfolio de Ian Kasperczak: un cuarto en miniatura donde cada objeto es un proyecto.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${display.variable} ${body.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col overflow-x-hidden">{children}</body>
     </html>

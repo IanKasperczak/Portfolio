@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { RoundedBox } from "@react-three/drei";
-import { MathUtils, type Group, type MeshStandardMaterial } from "three";
-import type { Project } from "@/lib/projects";
+import { useGLTF } from "@react-three/drei";
+import { MathUtils, Mesh, Vector3, type Group } from "three";
+import { projects, type Project } from "@/lib/projects";
+import { DEFAULT_WOBBLE, motionPrefs, Wobbler } from "./interaction";
 
 const HOVER_SCALE = 1.08;
 const HOVER_LIFT = 0.18;
-const HOVER_EMISSIVE = 0.65;
-const IDLE_EMISSIVE = 0.04;
-/** Qué tan rápido convergen scale / lift / emissive al valor objetivo. */
+/** Qué tan rápido convergen scale / lift al valor objetivo. El brillo del
+ *  hover lo dibuja el post-processing alrededor de la silueta. */
 const DAMP = 9;
+/** Empujón (rad/s) al entrar el cursor: confirma que el objeto se puede tocar. */
+const HOVER_KICK = 1.4;
 
 type ProjectObjectProps = {
   project: Project;
@@ -25,10 +27,18 @@ export default function ProjectObject({
   onHoverChange,
 }: ProjectObjectProps) {
   const group = useRef<Group>(null);
-  const material = useRef<MeshStandardMaterial>(null);
+  const wobbler = useRef<Wobbler | null>(null);
   const [hovered, setHovered] = useState(false);
+  const { scene } = useGLTF(project.model);
 
-  const [width, height, depth] = project.size;
+  const model = useMemo(() => {
+    scene.traverse((child) => {
+      if (!(child instanceof Mesh)) return;
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+    return scene;
+  }, [scene]);
 
   useEffect(() => {
     if (!hovered) return;
@@ -57,14 +67,14 @@ export default function ProjectObject({
       delta,
     );
 
-    if (material.current) {
-      material.current.emissiveIntensity = MathUtils.damp(
-        material.current.emissiveIntensity,
-        hovered ? HOVER_EMISSIVE : IDLE_EMISSIVE,
-        DAMP,
-        delta,
-      );
-    }
+    // El origen del modelo está en su base: rotar el grupo lo inclina desde el apoyo.
+    wobbler.current ??= new Wobbler(
+      node,
+      new Vector3(...project.position),
+      project.wobble ?? DEFAULT_WOBBLE,
+    );
+    if (motionPrefs.reduced) wobbler.current.reset();
+    else wobbler.current.update(delta);
   });
 
   const setHoverState = (value: boolean) => {
@@ -74,6 +84,7 @@ export default function ProjectObject({
 
   const handleOver = (event: ThreeEvent<PointerEvent>) => {
     event.stopPropagation();
+    if (!hovered && !motionPrefs.reduced) wobbler.current?.kick(HOVER_KICK);
     setHoverState(true);
   };
 
@@ -84,47 +95,21 @@ export default function ProjectObject({
     onSelect(project);
   };
 
-  // El material se comparte entre las variantes de forma.
-  const surface = (
-    <meshStandardMaterial
-      ref={material}
-      color={project.color}
-      emissive={project.accent}
-      emissiveIntensity={IDLE_EMISSIVE}
-      roughness={0.48}
-      metalness={0.04}
-    />
-  );
-
   return (
     <group
       ref={group}
+      // El post-processing busca el objeto resaltado por este nombre.
+      name={project.id}
       position={project.position}
       onPointerOver={handleOver}
       onPointerOut={handleOut}
       onClick={handleClick}
     >
-      {project.shape === "box" ? (
-        <RoundedBox
-          args={[width, height, depth]}
-          radius={Math.min(width, height, depth) * 0.12}
-          smoothness={4}
-          position={[0, height / 2, 0]}
-          castShadow
-          receiveShadow
-        >
-          {surface}
-        </RoundedBox>
-      ) : (
-        <mesh position={[0, height / 2, 0]} castShadow receiveShadow>
-          {project.shape === "cylinder" ? (
-            <cylinderGeometry args={[width / 2, width / 2, height, 40]} />
-          ) : (
-            <coneGeometry args={[width / 2, height, 44]} />
-          )}
-          {surface}
-        </mesh>
-      )}
+      <primitive object={model} />
     </group>
   );
+}
+
+for (const project of projects) {
+  useGLTF.preload(project.model);
 }

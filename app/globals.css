@@ -5,28 +5,97 @@
   --background: #f7ecdc;
   --background-deep: #e9d6bb;
   --foreground: #3a2415;
+
+  /* Curvas de animación compartidas (también en components/ui/motion.ts) */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
 }
+
+/* Mismo corte que WIDE_QUERY en Scene3D/Scene.tsx: texto a la izquierda y cuarto a la derecha. */
+@custom-variant wide (@media (min-width: 1024px) and (min-aspect-ratio: 23/20));
+/* Mouse o trackpad (no táctil). */
+@custom-variant fine (@media (hover: hover) and (pointer: fine));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-parkinsans), system-ui, sans-serif;
+  --font-display: var(--font-tilt), var(--font-parkinsans), system-ui, sans-serif;
 }
 
 body {
-  background:
-    radial-gradient(
-      120% 90% at 50% 0%,
-      var(--background) 0%,
-      var(--background-deep) 100%
-    );
+  /* Plano: el hero se funde en este color al terminar. */
+  background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 /* El canvas de R3F se estira al contenedor; evitamos overflow horizontal. */
 canvas {
   display: block;
   touch-action: pan-y;
+}
+
+/*
+ * Luz del mouse sobre las letras del título (SheenHeading). No es un glow: las
+ * letras no emiten nada, es un reflejo cálido que les pasa por encima. Dos
+ * capas recortadas al texto: la luz arriba y el color de la letra abajo.
+ * SheenHeading escribe --sx/--sy (posición de la luz en px, relativa a la
+ * palabra) y --si (intensidad 0..1) en cada palabra. Sin JS (o en pantallas
+ * táctiles) --si queda en 0 y se ve el color plano.
+ */
+.sheen-word {
+  --sheen-base: var(--color-amber-950, #461901);
+  color: transparent;
+  background-image:
+    radial-gradient(
+      circle 10rem at var(--sx, -100vw) var(--sy, -100vh),
+      rgb(255 205 150 / calc(var(--si, 0) * 0.9)) 0%,
+      rgb(214 120 66 / calc(var(--si, 0) * 0.55)) 30%,
+      rgb(214 120 66 / 0) 72%
+    ),
+    linear-gradient(var(--sheen-base), var(--sheen-base));
+  -webkit-background-clip: text;
+  background-clip: text;
+  /* La caja de la palabra tiene que cubrir los descendentes: lo que queda
+     afuera del fondo, con texto transparente, no se pintaría. */
+  padding-bottom: 0.14em;
+  margin-bottom: -0.14em;
+}
+
+/* Indicador de scroll: un punto que baja por una línea, en loop. */
+@keyframes scroll-cue {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(28px);
+    opacity: 0;
+  }
+}
+
+.scroll-cue-dot {
+  animation: scroll-cue 2.2s var(--ease-in-out) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .scroll-cue-dot {
+    animation: none;
+    opacity: 1;
+  }
 }
